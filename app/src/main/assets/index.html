@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IPTV Player</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #0a0a0f;
+    color: #e0e0e0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    cursor: none;
+  }
+
+  /* ── Header ── */
+  #header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #12121e, #16213e);
+    border-bottom: 1px solid #1e1e30;
+    flex-shrink: 0;
+  }
+  #header h2 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    background: linear-gradient(90deg, #6c63ff, #48bfe3);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    white-space: nowrap;
+  }
+  #search {
+    flex: 1;
+    padding: 10px 18px;
+    background: #1e1e2e;
+    border: 2px solid #2e2e45;
+    border-radius: 24px;
+    color: #ccc;
+    font-size: 18px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  #search:focus { border-color: #6c63ff; box-shadow: 0 0 0 3px #6c63ff33; }
+  #search::placeholder { color: #555; }
+
+  /* ── Channel Strip ── */
+  #channel-strip-wrapper {
+    flex-shrink: 0;
+    background: #0e0e18;
+    border-bottom: 1px solid #1e1e30;
+    padding: 10px 0;
+  }
+  #group-tabs {
+    display: flex;
+    gap: 10px;
+    padding: 0 16px 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  #group-tabs::-webkit-scrollbar { display: none; }
+
+  .group-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 24px;
+    border-radius: 28px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 2px solid #2a2a40;
+    color: #666;
+    white-space: nowrap;
+    transition: all 0.15s;
+    background: #12121e;
+    user-select: none;
+    outline: none;
+  }
+  .group-tab:focus, .group-tab:hover { border-color: #6c63ff; color: #aaa; background: #1a1a2e; }
+  .group-tab .tab-flag { font-size: 20px; line-height: 1; }
+  .group-tab.active {
+    background: linear-gradient(135deg, #6c63ff, #48bfe3);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 0 0 4px #6c63ff44;
+  }
+  .group-tab.tv-focus {
+    outline: 4px solid #fff;
+    outline-offset: 2px;
+  }
+
+  #channel-strip {
+    display: flex;
+    gap: 10px;
+    padding: 0 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  #channel-strip::-webkit-scrollbar { display: none; }
+
+  .ch-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    border: 2px solid #1e1e2e;
+    background: #12121e;
+    transition: all 0.15s;
+    min-width: 90px;
+    flex-shrink: 0;
+    outline: none;
+  }
+  .ch-card:hover { background: #1a1a2e; border-color: #2e2e45; }
+  .ch-card.active {
+    background: linear-gradient(135deg, #1e1e3e, #1a1a30);
+    border-color: #6c63ff88;
+    box-shadow: 0 0 16px #6c63ff33;
+  }
+  .ch-card.tv-focus {
+    outline: 4px solid #6c63ff;
+    outline-offset: 2px;
+    border-color: #6c63ff;
+    background: #1a1a2e;
+  }
+
+  .ch-card .icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #2a2a4e, #1e1e3e);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 800;
+    color: #7777bb;
+    letter-spacing: -0.5px;
+  }
+  .ch-card.active .icon, .ch-card.tv-focus .icon {
+    background: linear-gradient(135deg, #6c63ff, #48bfe3);
+    color: white;
+  }
+  .ch-card .label {
+    font-size: 13px;
+    color: #888;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 80px;
+  }
+  .ch-card.active .label, .ch-card.tv-focus .label { color: #c0c0ff; }
+
+  /* ── Video Area ── */
+  #video-area {
+    flex: 1;
+    background: #000;
+    position: relative;
+    min-height: 0;
+  }
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+  #placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    color: #2a2a3a;
+    pointer-events: none;
+  }
+  #placeholder svg { width: 80px; height: 80px; }
+  #placeholder p { font-size: 20px; }
+
+  #loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: #0009;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+    z-index: 10;
+  }
+  #loading-overlay.show { display: flex; }
+  .spinner {
+    width: 56px; height: 56px;
+    border: 4px solid #2e2e45;
+    border-top-color: #6c63ff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading-overlay p { font-size: 18px; color: #777; }
+
+  /* ── Now Playing ── */
+  #now-playing {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #12121e, #0e0e18);
+    border-top: 1px solid #1e1e30;
+    flex-shrink: 0;
+  }
+  #np-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #ff4444;
+    flex-shrink: 0;
+    display: none;
+    animation: pulse 1.5s infinite;
+  }
+  #np-dot.show { display: block; }
+  @keyframes pulse {
+    0%,100% { opacity:1; transform:scale(1); }
+    50% { opacity:0.4; transform:scale(0.7); }
+  }
+  #np-name { flex: 1; font-size: 20px; font-weight: 600; color: #9898cc; }
+  #np-name.active { color: #e0e0ff; }
+  #np-badge {
+    font-size: 14px; font-weight: 700;
+    padding: 4px 12px;
+    background: #ff4444; color: white;
+    border-radius: 12px; letter-spacing: 0.5px;
+    display: none;
+  }
+  #np-badge.show { display: block; }
+
+  /* ── Error ── */
+  #error-bar {
+    padding: 10px 20px;
+    background: #3a1010;
+    border-top: 1px solid #5a1a1a;
+    color: #ff8888;
+    font-size: 16px;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  #error-bar.show { display: flex; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h2>📺 IPTV</h2>
+  <input id="search" type="text" placeholder="Search channels…" oninput="filterChannels(this.value)">
+</div>
+
+<div id="channel-strip-wrapper">
+  <div id="group-tabs"></div>
+  <div id="channel-strip"></div>
+</div>
+
+<div id="video-area">
+  <div id="placeholder">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+      <rect x="2" y="7" width="20" height="14" rx="2"/>
+      <path d="M16 3l-4 4-4-4"/>
+    </svg>
+    <p>Select a channel</p>
+  </div>
+  <div id="loading-overlay"><div class="spinner"></div><p>Loading…</p></div>
+  <video id="video" controls playsinline></video>
+</div>
+
+<div id="now-playing">
+  <div id="np-dot"></div>
+  <div id="np-name">No channel selected</div>
+  <div id="np-badge">LIVE</div>
+</div>
+<div id="error-bar">⚠️ <span id="error-msg">Stream failed.</span></div>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+<script>
+const m3u = `
+#EXTM3U
+
+#EXTINF:-1 tvg-id="BBCOne.uk" group-title="UK",BBC One
+https://vs-hls-pushb-uk-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_one_yorks/iptv_hd_abr_v1.m3u8
+
+#EXTINF:-1 tvg-id="BBCTwo.uk" group-title="UK",BBC Two
+https://vs-hls-push-uk-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_two_hd/iptv_hd_abr_v1.m3u8
+
+#EXTINF:-1 tvg-id="BBCThree.uk" group-title="UK",BBC Three
+https://vs-hls-pushb-uk-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_three_hd/iptv_hd_abr_v1.m3u8
+
+#EXTINF:-1 tvg-id="BBCFour.uk" group-title="UK",BBC Four
+https://vs-hls-pushb-uk-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_four_hd/iptv_hd_abr_v1.m3u8
+
+#EXTINF:-1 tvg-id="S4C.uk" group-title="UK",S4C
+https://live-uk.s4c-cdn.co.uk/out/v1/a0134f1fd5a2461b9422b574566d4442/live_uk.m3u8
+
+#EXTINF:-1 tvg-id="BBCAlba.uk" group-title="UK",BBC Alba
+https://vs-hls-pushb-uk-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_alba/iptv_hd_abr_v1.m3u8
+
+#EXTINF:-1 tvg-id="BBCScotland.uk" group-title="UK",BBC Scotland
+https://vs-hls-pushb-uk-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_scotland_hd/pc_hd_abr_v2.m3u8
+
+#EXTINF:-1 tvg-id="QVC.uk" group-title="UK",QVC UK
+https://qvcuk-live.akamaized.net/hls/live/2097112/qvc/3/3.m3u8
+
+#EXTINF:-1 tvg-id="ITV1.uk" group-title="UK",ITV1
+https://viznf.gdgdfhbdfidsf.xyz/1781575457/eec49998d9ec454baad9c00b86e99eaa/2n5aXEg0b0xprGc3ifaQzs6-XyhkEPvQ8PUwgHFiMhA/itv1-uk.m3u8
+
+#EXTINF:-1 tvg-id="IRIBChannel3.ir" group-title="Iran",IRIB Channel 3
+https://glparishhls36.glwiz.com/IRIBChannel3/IRIBChannel3_Low.m3u8?user=sgls15caj51zfxqu2pxern1eyosr&session=be6f2676d3fb0314f6d00166941eb2321c352d26ecf7166cd043f17d4d8e8175c6d9fb6146bcf5d9cdf6a45651927014f5a090edd5c77e0fc7ad11cb4536875d&hlsid=HTTP_ID_23143
+
+#EXTINF:-1 tvg-id="PersianaSport.ir" group-title="Iran",Persiana Sport
+https://glparishhls36.glwiz.com/PersianaSport/PersianaSport_Low.m3u8?user=sgls15caj51zfxqu2pxern1eyosr&session=02b1a30e015a276b0cf661bccbe707e18392730ffb28c5acd043f17d4d8e8175c6d9fb6146bcf5d9cdf6a45651927014f5a090edd5c77e0fc7ad11cb4536875d&hlsid=HTTP_ID_23175
+
+#EXTINF:-1 tvg-id="BBCPersian.ir" group-title="Iran",BBC Persian
+https://vs-hls-pushb-ww-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_persian_tv/iptv_hd_abr_v1.m3u8
+
+#EXTINF:-1 tvg-id="RadioFarda.ir" group-title="Iran",Radio Farda
+https://rferl-ingest.akamaized.net/hls/live/2121768/tvmc01/playlist_0576.m3u8
+
+#EXTINF:-1 tvg-id="IranInternational.ir" group-title="Iran",Iran International
+https://live.livetvstream.co.uk/LS-63503-1/chunklist_b1196000.m3u8
+
+#EXTINF:-1 tvg-id="FashionTV.int" group-title="Entertainment",Fashion TV
+https://iptv.prosto.tv/ch582/tracks-v2a1/mono.m3u8?21yo=1&e=1783350200&id=742347&ip=178.136.40.86&live=1&secret=vu2y5m72&st=RRhh01CY6iYIRs_Kyoc3lw
+
+#EXTINF:-1 tvg-id="FoxNews.us" group-title="News",Fox News
+http://41.205.93.154/FOX-NEWS/index.m3u8
+`;
+
+function parseM3U(data) {
+  const lines = data.split('\n').map(l => l.trim()).filter(Boolean);
+  const groups = {};
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].startsWith('#EXTINF')) continue;
+    const name = lines[i].split(',').slice(1).join(',').trim() || 'Unknown';
+    const g = (lines[i].match(/group-title="([^"]*)"/) || [])[1] || 'Other';
+    const audioUrl = (lines[i].match(/audio-url="([^"]*)"/) || [])[1] || null;
+    const url = lines[i + 1] || '';
+    if (!url.startsWith('http')) continue;
+    if (!groups[g]) groups[g] = [];
+    groups[g].push({ name, url, audioUrl });
+  }
+  return groups;
+}
+
+let blobUrl = null;
+function makeMasterBlob(videoUrl, audioUrl) {
+  if (blobUrl) { URL.revokeObjectURL(blobUrl); blobUrl = null; }
+  const txt = ['#EXTM3U',
+    `#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a0",NAME="Audio",DEFAULT=YES,AUTOSELECT=YES,URI="${audioUrl}"`,
+    `#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.4d401f,mp4a.40.2",AUDIO="a0"`,
+    videoUrl].join('\n');
+  blobUrl = URL.createObjectURL(new Blob([txt], { type: 'application/x-mpegURL' }));
+  return blobUrl;
+}
+
+const groupedChannels = parseM3U(m3u);
+const groupNames = Object.keys(groupedChannels);
+
+const video    = document.getElementById('video');
+const strip    = document.getElementById('channel-strip');
+const tabs     = document.getElementById('group-tabs');
+const npName   = document.getElementById('np-name');
+const npBadge  = document.getElementById('np-badge');
+const npDot    = document.getElementById('np-dot');
+const loading  = document.getElementById('loading-overlay');
+const errorBar = document.getElementById('error-bar');
+const errorMsg = document.getElementById('error-msg');
+const placeholder = document.getElementById('placeholder');
+
+let hls = null, dash = null, activeCard = null, activeGroup = groupNames[0];
+let tvArea = 'tabs'; // 'tabs' | 'channels'
+let tvTabIdx = 0, tvChIdx = 0;
+
+function initials(n) { return n.split(' ').map(w=>w[0]).join('').slice(0,3).toUpperCase(); }
+function setErr(m) { errorMsg.textContent = m; errorBar.classList.add('show'); loading.classList.remove('show'); }
+function clearErr() { errorBar.classList.remove('show'); }
+
+function play(ch, cardEl) {
+  clearErr();
+  placeholder.style.display = 'none';
+  loading.classList.add('show');
+  if (activeCard) activeCard.classList.remove('active');
+  activeCard = cardEl; cardEl.classList.add('active');
+  npName.textContent = ch.name; npName.classList.add('active');
+  npBadge.classList.add('show'); npDot.classList.add('show');
+  if (hls) { hls.destroy(); hls = null; }
+  if (dash) { dash.reset(); dash = null; }
+  video.removeAttribute('src');
+  const src = ch.audioUrl ? makeMasterBlob(ch.url, ch.audioUrl) : ch.url;
+  const isDash = !ch.audioUrl && (ch.url.includes('.mpd') || ch.url.includes('/mpd/'));
+  if (isDash) {
+    dash = dashjs.MediaPlayer().create();
+    dash.initialize(video, src, true);
+    dash.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, () => loading.classList.remove('show'));
+    dash.on(dashjs.MediaPlayer.events.ERROR, e => setErr('DASH error'));
+  } else if (Hls.isSupported()) {
+    hls = new Hls({ enableWorker: true });
+    hls.loadSource(src); hls.attachMedia(video);
+    hls.on(Hls.Events.MANIFEST_PARSED, () => { loading.classList.remove('show'); video.play().catch(()=>{}); });
+    hls.on(Hls.Events.ERROR, (_, d) => { if (d.fatal) setErr('Stream error'); });
+  } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    video.src = src;
+    video.addEventListener('loadedmetadata', () => { loading.classList.remove('show'); video.play(); }, { once: true });
+  } else {
+    setErr('HLS not supported'); loading.classList.remove('show');
+  }
+}
+
+function setTvTabFocus(idx) {
+  document.querySelectorAll('.group-tab').forEach(t => t.classList.remove('tv-focus'));
+  const t = document.querySelectorAll('.group-tab')[idx];
+  if (t) { t.classList.add('tv-focus'); t.scrollIntoView({ inline: 'center', behavior: 'smooth' }); }
+}
+function setTvChFocus(idx) {
+  document.querySelectorAll('.ch-card').forEach(c => c.classList.remove('tv-focus'));
+  const c = document.querySelectorAll('.ch-card')[idx];
+  if (c) { c.classList.add('tv-focus'); c.scrollIntoView({ inline: 'center', behavior: 'smooth' }); }
+}
+
+document.addEventListener('keydown', (e) => {
+  const allTabs = document.querySelectorAll('.group-tab');
+  const allCards = document.querySelectorAll('.ch-card');
+  const key = e.key;
+  if (!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter','Escape'].includes(key)) return;
+  e.preventDefault();
+
+  if (tvArea === 'tabs') {
+    if (key === 'ArrowLeft')  { tvTabIdx = Math.max(0, tvTabIdx - 1); setTvTabFocus(tvTabIdx); }
+    if (key === 'ArrowRight') { tvTabIdx = Math.min(allTabs.length - 1, tvTabIdx + 1); setTvTabFocus(tvTabIdx); }
+    if (key === 'ArrowDown')  { tvArea = 'channels'; tvChIdx = 0; setTvChFocus(0); }
+    if (key === 'Enter') { allTabs[tvTabIdx]?.click(); tvChIdx = 0; }
+  } else {
+    if (key === 'ArrowLeft')  { tvChIdx = Math.max(0, tvChIdx - 1); setTvChFocus(tvChIdx); }
+    if (key === 'ArrowRight') { tvChIdx = Math.min(allCards.length - 1, tvChIdx + 1); setTvChFocus(tvChIdx); }
+    if (key === 'ArrowUp')    { tvArea = 'tabs'; setTvTabFocus(tvTabIdx); document.querySelectorAll('.ch-card').forEach(c=>c.classList.remove('tv-focus')); }
+    if (key === 'Enter') { allCards[tvChIdx]?.click(); }
+  }
+});
+
+function renderStrip(groupName, filterQ) {
+  strip.innerHTML = '';
+  tvChIdx = 0;
+  let channels = groupedChannels[groupName] || [];
+  if (filterQ) {
+    const q = filterQ.toLowerCase();
+    channels = Object.values(groupedChannels).flat().filter(c => c.name.toLowerCase().includes(q));
+  }
+  channels.forEach((ch, i) => {
+    const card = document.createElement('div');
+    card.className = 'ch-card';
+    if (activeCard && ch.url === activeCard.dataset.url) card.classList.add('active');
+    card.dataset.url = ch.url;
+    card.innerHTML = `<div class="icon">${initials(ch.name)}</div><div class="label">${ch.name}</div>`;
+    card.onclick = () => play(ch, card);
+    strip.appendChild(card);
+  });
+  if (tvArea === 'channels') setTvChFocus(0);
+}
+
+const GROUP_FLAGS = { 'UK': '🇬🇧', 'Iran': '🇮🇷', 'Entertainment': '🎭', 'News': '📰' };
+
+function renderTabs() {
+  tabs.innerHTML = '';
+  groupNames.forEach((g, i) => {
+    const btn = document.createElement('div');
+    btn.className = 'group-tab' + (g === activeGroup ? ' active' : '');
+    btn.innerHTML = `<span class="tab-flag">${GROUP_FLAGS[g]||'📡'}</span>${g}`;
+    btn.onclick = () => {
+      activeGroup = g; tvTabIdx = i;
+      document.querySelectorAll('.group-tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      renderStrip(g);
+    };
+    tabs.appendChild(btn);
+  });
+  setTvTabFocus(0);
+}
+
+function filterChannels(q) {
+  q ? renderStrip(null, q) : renderStrip(activeGroup);
+}
+
+renderTabs();
+renderStrip(activeGroup);
+</script>
+</body>
+</html>
